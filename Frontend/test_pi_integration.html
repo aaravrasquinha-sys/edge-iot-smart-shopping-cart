@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Raspberry Pi Integration</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #cart-items { margin-top: 10px; }
+        .cart-item { padding: 5px; background: #f0f0f0; margin: 2px 0; }
+    </style>
+</head>
+<body>
+    <h1>🛒 Raspberry Pi Integration Test</h1>
+    <p>Testing if frontend can receive updates from Raspberry Pi scans</p>
+    
+    <div class="test-section">
+        <h3>Step 1: Test Backend Connection</h3>
+        <button onclick="testBackend()">Test Backend API</button>
+        <div id="backend-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Step 2: Simulate Pi Scan</h3>
+        <button onclick="simulatePiScan()">Simulate Pi Scan (Tag 101)</button>
+        <div id="scan-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Step 3: Monitor Cart Updates</h3>
+        <button onclick="startMonitoring()">Start Monitoring Cart</button>
+        <button onclick="stopMonitoring()">Stop Monitoring</button>
+        <div id="monitoring-status">Not monitoring</div>
+        <div id="cart-items"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Instructions</h3>
+        <ol>
+            <li>Click "Test Backend API" to verify connection</li>
+            <li>Click "Simulate Pi Scan" to add items</li>
+            <li>Click "Start Monitoring Cart" to watch for updates</li>
+            <li>Or run your actual Pi scanner and watch updates appear!</li>
+        </ol>
+    </div>
+
+    <script>
+        let monitoringInterval = null;
+        let currentCartId = 'test-cart-pi';
+        
+        async function testBackend() {
+            const result = document.getElementById('backend-result');
+            try {
+                const response = await fetch('http://10.30.74.230:5000/api/products');
+                const products = await response.json();
+                result.innerHTML = '<div class="success">✅ Backend connected! Found ' + products.length + ' products</div>';
+            } catch (error) {
+                result.innerHTML = '<div class="error">❌ Backend connection failed: ' + error.message + '</div>';
+            }
+        }
+        
+        async function simulatePiScan() {
+            const result = document.getElementById('scan-result');
+            try {
+                const response = await fetch('http://10.30.74.230:5000/api/detect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cart_id: currentCartId,
+                        tag_id: 101
+                    })
+                });
+                const data = await response.json();
+                result.innerHTML = '<div class="success">✅ Scan successful! Added: ' + data.product.name + '</div>';
+            } catch (error) {
+                result.innerHTML = '<div class="error">❌ Scan failed: ' + error.message + '</div>';
+            }
+        }
+        
+        async function updateCartDisplay() {
+            const cartDiv = document.getElementById('cart-items');
+            try {
+                const response = await fetch('http://10.30.74.230:5000/api/cart/' + currentCartId);
+                const cart = await response.json();
+                
+                if (cart.items && cart.items.length > 0) {
+                    cartDiv.innerHTML = '<h4>Cart Items (' + cart.items.length + '):</h4>' +
+                        cart.items.map(item => 
+                            '<div class="cart-item">' + item.name + ' - Qty: ' + item.quantity + ' - AED ' + item.subtotal + '</div>'
+                        ).join('');
+                } else {
+                    cartDiv.innerHTML = '<div class="cart-item">Cart is empty</div>';
+                }
+            } catch (error) {
+                cartDiv.innerHTML = '<div class="error">Failed to load cart: ' + error.message + '</div>';
+            }
+        }
+        
+        function startMonitoring() {
+            if (monitoringInterval) return;
+            
+            monitoringInterval = setInterval(updateCartDisplay, 2000);
+            document.getElementById('monitoring-status').innerHTML = '<div class="success">🔄 Monitoring cart every 2 seconds...</div>';
+            updateCartDisplay(); // Update immediately
+        }
+        
+        function stopMonitoring() {
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+                document.getElementById('monitoring-status').innerHTML = 'Not monitoring';
+            }
+        }
+        
+        // Auto-start monitoring
+        startMonitoring();
+    </script>
+</body>
+</html>

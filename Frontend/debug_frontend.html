@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Frontend Connection</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Frontend Connection</h1>
+    <div id="status"></div>
+    <div id="cart-data"></div>
+    
+    <script>
+        async function debugConnection() {
+            const status = document.getElementById('status');
+            const cartData = document.getElementById('cart-data');
+            
+            status.innerHTML = '<div class="info">🔄 Testing connection...</div>';
+            
+            try {
+                // Test 1: Check if backend is reachable
+                const productsResponse = await fetch('http://10.30.74.230:5000/api/products');
+                if (!productsResponse.ok) {
+                    throw new Error('Backend not reachable');
+                }
+                status.innerHTML += '<div class="success">✅ Backend reachable</div>';
+                
+                // Test 2: Get cart data
+                const cartResponse = await fetch('http://10.30.74.230:5000/api/cart/cart-001');
+                const cart = await cartResponse.json();
+                
+                status.innerHTML += '<div class="success">✅ Cart data retrieved</div>';
+                
+                // Display cart data
+                cartData.innerHTML = `
+                    <h3>🛒 Cart Data (cart-001)</h3>
+                    <pre>${JSON.stringify(cart, null, 2)}</pre>
+                    <div class="info">
+                        <strong>Items in cart: ${cart.item_count}</strong><br>
+                        <strong>Total: AED ${cart.total}</strong><br>
+                        <strong>Products:</strong><br>
+                        ${cart.items.map(item => `- ${item.name} x${item.quantity} = AED ${item.subtotal}`).join('<br>')}
+                    </div>
+                `;
+                
+                // Test 3: Simulate new scan
+                status.innerHTML += '<div class="info">🔄 Testing new scan...</div>';
+                const scanResponse = await fetch('http://10.30.74.230:5000/api/detect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cart_id: 'cart-001', tag_id: 102 })
+                });
+                const scanResult = await scanResponse.json();
+                
+                status.innerHTML += '<div class="success">✅ New scan successful: ' + scanResult.product.name + '</div>';
+                
+                // Test 4: Check cart again
+                setTimeout(async () => {
+                    const updatedCartResponse = await fetch('http://10.30.74.230:5000/api/cart/cart-001');
+                    const updatedCart = await updatedCartResponse.json();
+                    
+                    cartData.innerHTML += `
+                        <h3>🔄 Updated Cart Data</h3>
+                        <pre>${JSON.stringify(updatedCart, null, 2)}</pre>
+                        <div class="success">
+                            <strong>Items now: ${updatedCart.item_count}</strong><br>
+                            <strong>New total: AED ${updatedCart.total}</strong>
+                        </div>
+                    `;
+                    
+                    status.innerHTML += '<div class="success">🎉 Auto-refresh working! Cart updated.</div>';
+                }, 1000);
+                
+            } catch (error) {
+                status.innerHTML += '<div class="error">❌ Error: ' + error.message + '</div>';
+                console.error('Debug error:', error);
+            }
+        }
+        
+        // Auto-start debug
+        debugConnection();
+        
+        // Refresh cart every 2 seconds to simulate frontend polling
+        setInterval(async () => {
+            try {
+                const cartResponse = await fetch('http://10.30.74.230:5000/api/cart/cart-001');
+                const cart = await cartResponse.json();
+                document.getElementById('cart-data').innerHTML = `
+                    <h3>🛒 Live Cart Data (updating every 2s)</h3>
+                    <pre>${JSON.stringify(cart, null, 2)}</pre>
+                    <div class="info">
+                        <strong>Items: ${cart.item_count} | Total: AED ${cart.total}</strong><br>
+                        <small>Last updated: ${new Date().toLocaleTimeString()}</small>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Refresh error:', error);
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

@@ -5,7 +5,6 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ItemCard from "@/components/ItemCard";
-import ReceiptModal from "@/components/ReceiptModal";
 import { CartItem } from "@/types/cart";
 import { toast } from "sonner";
 import useCart from "@/hooks/useCart";
@@ -84,6 +83,10 @@ const Index = () => {
         description: err instanceof Error ? err.message : "Failed to reset cart",
       });
     }
+  };
+
+  const handleMockScan = () => {
+    mockScan();
   };
 
   return (
@@ -195,6 +198,16 @@ const Index = () => {
               </div>
 
               <Button
+                onClick={handleMockScan}
+                disabled={scanning}
+                variant="outline"
+                className="w-full gap-2 mb-4"
+              >
+                <Barcode className="h-5 w-5" />
+                {scanning ? "Scanning..." : "Mock Scan Item"}
+              </Button>
+
+              <Button
                 onClick={handleCheckout}
                 disabled={items.length === 0}
                 className="w-full gap-2 bg-primary hover:bg-primary/90"
@@ -205,7 +218,7 @@ const Index = () => {
               </Button>
 
               <p className="mt-4 text-center text-xs text-muted-foreground">
-                Items scanned by Raspberry Pi will appear automatically
+                Scan items will be automatically added to your cart
               </p>
             </Card>
           </div>
